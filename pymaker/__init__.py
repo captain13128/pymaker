@@ -357,8 +357,7 @@ class Transact:
                  function_name: Optional[str],
                  parameters: Optional[list],
                  extra: Optional[dict] = None,
-                 result_function=None,
-                 use_infura: bool = False):
+                 result_function=None):
         assert(isinstance(origin, object) or (origin is None))
         assert(isinstance(web3, Web3))
         assert(isinstance(abi, list) or (abi is None))
@@ -381,7 +380,7 @@ class Transact:
         self.status = TransactStatus.NEW
         self.nonce = None
         self.replaced = False
-        self.use_infura = use_infura
+        self.use_infura = False if "infura" not in self.web3.provider.endpoint_uri else True
 
     def _is_parity(self) -> bool:
         global node_is_parity
