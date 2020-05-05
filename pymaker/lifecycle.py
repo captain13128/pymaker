@@ -76,8 +76,10 @@ class Lifecycle:
     """
     logger = logging.getLogger()
 
-    def __init__(self, web3: Web3 = None):
+    def __init__(self, web3: Web3 = None, **kwargs):
         self.web3 = web3
+
+        self.web3_ws = kwargs["web3_ws"] if "web3_ws" in kwargs else None
 
         self.do_wait_for_sync = True
         self.delay = 0
@@ -348,7 +350,10 @@ class Lifecycle:
                 self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
 
         def new_block_watch():
-            event_filter = self.web3.eth.filter('latest')
+            if self.web3_ws is not None:
+                event_filter = self.web3_ws.eth.filter('latest')
+            else:
+                event_filter = self.web3.eth.filter('latest')
             while True:
                 for event in event_filter.get_new_entries():
                     new_block_callback(event)

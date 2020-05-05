@@ -625,7 +625,8 @@ class Transact:
                     with transaction_lock:
                         if self.nonce is None:
                             if self._is_parity():
-                                self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
+                                # self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
+                                self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
 
                             else:
                                 self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
