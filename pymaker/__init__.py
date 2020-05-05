@@ -357,7 +357,8 @@ class Transact:
                  function_name: Optional[str],
                  parameters: Optional[list],
                  extra: Optional[dict] = None,
-                 result_function=None):
+                 result_function=None,
+                 use_infura: bool = False):
         assert(isinstance(origin, object) or (origin is None))
         assert(isinstance(web3, Web3))
         assert(isinstance(abi, list) or (abi is None))
@@ -380,6 +381,7 @@ class Transact:
         self.status = TransactStatus.NEW
         self.nonce = None
         self.replaced = False
+        self.use_infura = use_infura
 
     def _is_parity(self) -> bool:
         global node_is_parity
@@ -624,9 +626,9 @@ class Transact:
                     # We need the lock in order to not try to send two transactions with the same nonce.
                     with transaction_lock:
                         if self.nonce is None:
-                            if self._is_parity():
-                                # self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
-                                self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+                            if self._is_parity() and not self.use_infura:
+                                self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
+                                # self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
 
                             else:
                                 self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
