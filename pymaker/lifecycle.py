@@ -26,7 +26,7 @@ from pymaker.sign import eth_sign
 from web3 import Web3
 
 from pymaker import register_filter_thread, any_filter_thread_present, stop_all_filter_threads, all_filter_threads_alive
-from pymaker.util import AsyncCallback
+from pymaker.util import AsyncCallback, get_provider_for_filter
 
 
 def trigger_event(event: threading.Event):
@@ -350,10 +350,12 @@ class Lifecycle:
                 self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
 
         def new_block_watch():
-            if self.web3_ws is not None:
-                event_filter = self.web3_ws.eth.filter('latest')
-            else:
-                event_filter = self.web3.eth.filter('latest')
+            provider_for_filter = get_provider_for_filter(self.web3)
+            # if self.web3_ws is not None:
+            #     event_filter = self.web3_ws.eth.filter('latest')
+            # else:
+            #     event_filter = self.web3.eth.filter('latest')
+            event_filter = provider_for_filter.eth.filter('latest')
             while True:
                 for event in event_filter.get_new_entries():
                     new_block_callback(event)

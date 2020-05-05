@@ -40,7 +40,7 @@ from eth_abi.registry import registry as default_registry
 
 from pymaker.gas import DefaultGasPrice, GasPrice
 from pymaker.numeric import Wad
-from pymaker.util import synchronize, bytes_to_hexstring, is_contract_at
+from pymaker.util import synchronize, bytes_to_hexstring, is_contract_at, get_provider_for_filter
 
 filter_threads = []
 node_is_parity = None
@@ -181,8 +181,11 @@ class Contract:
 
             return callback
 
+        _web3 = contract.events[event].web3
+        contract.events[event].web3 = get_provider_for_filter(_web3)
         result = contract.events[event].createFilter(fromBlock=from_block, toBlock=to_block,
                                                      argument_filters=event_filter).get_all_entries()
+        contract.events[event].web3 = _web3
 
         return list(map(_event_callback(cls, True), result))
 

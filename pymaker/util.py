@@ -19,7 +19,7 @@ import asyncio
 import logging
 import threading
 
-from web3 import Web3
+from web3 import Web3, WebsocketProvider
 
 from pymaker.numeric import Wad
 
@@ -95,6 +95,16 @@ def hexstring_to_bytes(value: str) -> bytes:
     assert(isinstance(value, str))
     assert(value.startswith("0x"))
     return Web3.toBytes(hexstr=value)
+
+
+def get_provider_for_filter(web3: Web3):
+    use_infura = False if "infura" not in web3.provider.endpoint_uri else True
+
+    if use_infura:
+        wss_url = f"wss://{'/ws/'.join(web3.provider.endpoint_uri.split('://')[1].split('/', 1))}"
+        return Web3(WebsocketProvider(wss_url))
+    else:
+        return web3
 
 
 class AsyncCallback:
