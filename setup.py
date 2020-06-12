@@ -28,15 +28,15 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.1.0',  # Required
+    version='1.1.1',  # Required
     description='Python API for Maker contracts',
     license='COPYING',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/makerdao/pymaker',
+    url='https://github.com/captain13128/pymaker',
     author='MakerDAO',
     packages=find_packages(include=['pymaker', 'pymaker.*']),  # Required
-    package_data={'pymaker': ['abi/*', '../config/*']},
+    package_data={'pymaker': ['abi/*', '../config/*', 'abi/Cat.abi']},
     include_package_data=True,
     python_requires='~=3.6',
 
