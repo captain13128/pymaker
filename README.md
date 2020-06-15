@@ -5,23 +5,21 @@ Python API for Maker contracts.
 [![Build Status](https://travis-ci.org/makerdao/pymaker.svg?branch=master)](https://travis-ci.org/makerdao/pymaker)
 [![codecov](https://codecov.io/gh/makerdao/pymaker/branch/master/graph/badge.svg)](https://codecov.io/gh/makerdao/pymaker)
 
-<https://chat.makerdao.com/channel/keeper>
-
 ## Introduction
 
-The _DAI Stablecoin System_ incentivizes external agents, called _keepers_,
+The _MCR Stablecoin System_ incentivizes external agents, called _keepers_,
 to automate certain operations around the Ethereum blockchain. In order to ease their
 development, an API around most of the Maker contracts has been created. It can be used
 not only by keepers, but may also be found useful by authors of some other, unrelated
 utilities aiming to interact with these contracts.
 
-Based on this API, a set of reference Maker keepers is being developed. They all used to reside
+Based on this API, a set of reference Lends keepers is being developed. They all used to reside
 in this repository, but now each of them has an individual one: 
-[bite-keeper](https://github.com/makerdao/bite-keeper) (SCD only),
-[arbitrage-keeper](https://github.com/makerdao/arbitrage-keeper),
-[auction-keeper](https://github.com/makerdao/auction-keeper) (MCD only),
-[cdp-keeper](https://github.com/makerdao/cdp-keeper) (SCD only),
-[market-maker-keeper](https://github.com/makerdao/market-maker-keeper).
+[bite-keeper](https://github.com/monolithos/bite-keeper) (SCD only),
+[arbitrage-keeper](https://github.com/monolithos/arbitrage-keeper),
+[auction-keeper](https://github.com/monolithos/auction-keeper) (MCD only),
+[cdp-keeper](https://github.com/monolithos/cdp-keeper) (SCD only),
+[market-maker-keeper](https://github.com/monolithos/market-maker-keeper).
 
 You only need to install this project directly if you want to build your own keepers,
 or if you want to play with this API library itself. If you just want to install
@@ -34,9 +32,14 @@ This project uses *Python 3.6.6*.
 
 In order to clone the project and install required third-party packages please execute:
 ```
-git clone https://github.com/captain13128/pymaker.git
+git clone https://github.com/monolithos/pymaker.git
 cd pymaker
+python -m venv venv
 pip3 install -r requirements.txt
+
+or
+add to requirements file for your project
+-e git+https://YOUR_USERNAME@github.com/monolithos/pymaker.git#egg=pymaker
 ```
 
 ### Known Ubuntu issues
@@ -65,10 +68,9 @@ export LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openss
 
 The current version provides APIs around:
 * `ERC20Token`,
-* `Tub`, `Tap`,`Top` and `Vox` (<https://github.com/makerdao/sai>),
-* `Vat`, `Cat`, `Vow`, `Jug`, `Flipper`, `Flapper`, `Flopper` (<https://github.com/makerdao/dss>)
-* `SimpleMarket`, `ExpiringMarket` and `MatchingMarket` (<https://github.com/makerdao/maker-otc>),
-* `TxManager` (<https://github.com/makerdao/tx-manager>),
+* `Vat`, `Cat`, `Vow`, `Jug`, `Flipper`, `Flapper`, `Flopper` (<https://github.com/monolithos/dss>)
+* `SimpleMarket`, `ExpiringMarket` and `MatchingMarket` (<https://github.com/monolithos/maker-otc>),
+* `TxManager` (<https://github.com/monolithos/tx-manager>),
 * `DSGuard` (<https://github.com/dapphub/ds-guard>),
 * `DSToken` (<https://github.com/dapphub/ds-token>),
 * `DSEthToken` (<https://github.com/dapphub/ds-eth-token>),
@@ -79,7 +81,7 @@ The current version provides APIs around:
 * `0x v2`.
 
 APIs around the following functionality have not been implemented:
-* Dai Savings Rate (`Pot`)
+* MCR Savings Rate (`Pot`)
 * Global Settlement (`End`)
 * Governance (`DSAuth`, `DSChief`, `DSGuard`, `DSSpell`, `Mom`)
 
@@ -88,7 +90,7 @@ Contributions from the community are appreciated.
 ## Code samples
 
 Below you can find some code snippets demonstrating how the API can be used both for developing
-your own keepers and for creating some other utilities interacting with the _DAI Stablecoin_
+your own keepers and for creating some other utilities interacting with the _MCR Stablecoin_
 ecosystem contracts.
 
 ### Token transfer
