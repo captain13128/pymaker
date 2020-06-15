@@ -39,7 +39,7 @@ pip3 install -r requirements.txt
 
 or
 add to requirements file for your project
--e git+https://YOUR_USERNAME@github.com/monolithos/pymaker.git#egg=pymaker
+-e git+https://github.com/monolithos/pymaker.git#egg=pymaker
 ```
 
 ### Known Ubuntu issues
