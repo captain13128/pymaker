@@ -560,6 +560,7 @@ class Transact:
         # try to estimate it again.
         try:
             gas_estimate = self.estimated_gas(Address(from_account))
+            # gas_estimate = 300000
         except:
             if Transact.gas_estimate_for_bad_txs:
                 self.logger.warning(f"Transaction {self.name()} will fail, submitting anyway")

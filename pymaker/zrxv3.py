@@ -75,6 +75,20 @@ class ERC20Asset(Asset):
         return isinstance(other, ERC20Asset) and self.token_address == other.token_address
 
 
+class ETHAsset(Asset):
+    ID = "0x"
+    _ZERO_ADDRESS = Address("0x0000000000000000000000000000000000000000")
+
+    def serialize(self) -> str:
+        return self.ID
+
+    def __hash__(self):
+        return hash(self._ZERO_ADDRESS)
+
+    def __eq__(self, other):
+        return isinstance(other, ETHAsset) and self._ZERO_ADDRESS == other.token_address
+
+
 class UnknownAsset(Asset):
     def __init__(self, asset: str):
         assert(isinstance(asset, str))
@@ -126,6 +140,8 @@ class Order:
         self.expiration = expiration
         self.exchange_contract_address = exchange_contract_address
         self.signature = signature
+        self.maker_fee_asset = ETHAsset()
+        self.taker_fee_asset = ETHAsset()
 
     # this is not a proper 0x order_id, it's just so `OrderBookManager` can uniquely identify orders
     @property
@@ -183,7 +199,7 @@ class Order:
             "takerAssetData": self.buy_asset.serialize(),
             "makerAssetAmount": str(self.pay_amount.value),
             "takerAssetAmount": str(self.buy_amount.value),
-            "expirationTimeSeconds": str(self.expiration)
+            "expirationTimeSeconds": str(self.expiration),
         }
 
     def to_json(self) -> dict:
@@ -201,7 +217,10 @@ class Order:
             "takerFee": str(self.taker_fee.value),
             "expirationTimeSeconds": str(self.expiration),
             "salt": str(self.salt),
-            "signature": self.signature
+            "signature": self.signature,
+            "makerFeeAssetData": self.maker_fee_asset.serialize(),
+            "takerFeeAssetData": self.maker_fee_asset.serialize(),
+            "chainId": 1
         }
 
     def __eq__(self, other):
@@ -299,7 +318,7 @@ class ZrxExchangeV3(Contract):
     """A client for the 0x V3 exchange contract.
 
     You can find the `0x V3` exchange contract here:
-    <https://etherscan.io/address/0x4f833a24e1f95d70f028921e27040ca56e09ab0b>.
+    <https://etherscan.io/address/0x61935CbDd02287B511119DDb11Aeb42F1593b7Ef>.
 
     Attributes:
         web3: An instance of `Web` from `web3.py`.
@@ -311,7 +330,7 @@ class ZrxExchangeV3(Contract):
 
     _ZERO_ADDRESS = Address("0x0000000000000000000000000000000000000000")
 
-    ORDER_INFO_TYPE = '(address,address,address,address,uint256,uint256,uint256,uint256,uint256,uint256,bytes,bytes)'
+    ORDER_INFO_TYPE = '(address,address,address,address,uint256,uint256,uint256,uint256,uint256,uint256,bytes,bytes,bytes,bytes)'
 
     @staticmethod
     def deploy(web3: Web3, zrx_asset: str):
@@ -591,7 +610,10 @@ class ZrxExchangeV3(Contract):
                 order.expiration,
                 order.salt,
                 hexstring_to_bytes(order.pay_asset.serialize()),
-                hexstring_to_bytes(order.buy_asset.serialize()))
+                hexstring_to_bytes(order.buy_asset.serialize()),
+                hexstring_to_bytes(order.maker_fee_asset.serialize()),
+                hexstring_to_bytes(order.taker_fee_asset.serialize()),
+                )
 
     @staticmethod
     def generate_salt() -> int:
@@ -733,7 +755,7 @@ class ZrxRelayerApiV3:
         """
         assert(isinstance(order, Order))
 
-        response = requests.get(f"{self.api_server}/v3/order_config", params=order.to_json_without_fees(), timeout=self.timeout)
+        response = requests.post(f"{self.api_server}/v3/order_config", json=order.to_json_without_fees(), timeout=self.timeout)
         if response.status_code == 200:
             data = response.json()
             #{"senderAddress":"0xc8924d8cd9a758a4150afe7cc7030effaff1aecc","feeRecipientAddress":"0xc8924d8cd9a758a4150afe7cc7030effaff1aecc","makerFee":"0","takerFee":"0"}
@@ -743,6 +765,8 @@ class ZrxRelayerApiV3:
             configured_order.maker_fee = Wad(int(data['makerFee']))
             configured_order.taker_fee = Wad(int(data['takerFee']))
             configured_order.fee_recipient = Address(data['feeRecipientAddress'])
+            configured_order.maker_fee_asset = UnknownAsset(data['makerFeeAssetData'])
+            configured_order.taker_fee_asset = UnknownAsset(data['takerFeeAssetData'])
             return configured_order
         else:
             raise Exception(f"Failed to configure order with 0x SRAv3: {http_response_summary(response)}")
