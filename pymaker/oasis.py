@@ -31,6 +31,7 @@ from pymaker.token import ERC20Token
 from pymaker.util import int_to_bytes32, bytes_to_int
 from pymaker.model import Token
 
+
 class Order:
     """Represents a single order on `OasisDEX`.
 
@@ -49,14 +50,16 @@ class Order:
     """
 
     def __init__(self, market, order_id: int, maker: Address, pay_token: Address, pay_amount: Wad, buy_token: Address,
-                buy_amount: Wad, timestamp: int):
-        assert(isinstance(order_id, int))
-        assert(isinstance(maker, Address))
-        assert(isinstance(pay_token, Address))
-        assert(isinstance(pay_amount, Wad))
-        assert(isinstance(buy_token, Address))
-        assert(isinstance(buy_amount, Wad))
-        assert(isinstance(timestamp, int))
+                 buy_amount: Wad, timestamp: int, pay_token_decimal: int = 18, buy_token_decimal: int = 18):
+        assert (isinstance(order_id, int))
+        assert (isinstance(maker, Address))
+        assert (isinstance(pay_token, Address))
+        assert (isinstance(pay_amount, Wad))
+        assert (isinstance(buy_token, Address))
+        assert (isinstance(buy_amount, Wad))
+        assert (isinstance(timestamp, int))
+        assert (isinstance(pay_token_decimal, int))
+        assert (isinstance(buy_token_decimal, int))
 
         self._market = market
         self.order_id = order_id
@@ -67,24 +70,34 @@ class Order:
         self.buy_amount = buy_amount
         self.timestamp = timestamp
 
+        self.pay_token_decimal = pay_token_decimal
+        self.buy_token_decimal = buy_token_decimal
+
     @property
     def sell_to_buy_price(self) -> Wad:
-        return self.pay_amount / self.buy_amount
+        # return self.pay_amount / self.buy_amount
+        return (self.pay_amount * Wad.from_number(10 ** (18 - self.pay_token_decimal))) / (
+                    self.buy_amount * Wad.from_number(10 ** (18 - self.buy_token_decimal)))
+        # return Wad.from_number(int(self.pay_amount.value * 10**self.pay_token_decimal) / int(self.buy_amount.value * 10**self.buy_token_decimal))
 
     @property
     def buy_to_sell_price(self) -> Wad:
-        return self.buy_amount / self.pay_amount
+        # return self.buy_amount / self.pay_amount
+        return (self.buy_amount * Wad.from_number(10 ** (18 - self.buy_token_decimal))) / (
+                    self.pay_amount * Wad.from_number(10 ** (18 - self.pay_token_decimal)))
+
+        # return Wad.from_number(int(self.buy_amount.value * 10 ** self.buy_token_decimal) / int(self.pay_amount.value * 10 ** self.pay_token_decimal))
 
     @property
     def remaining_buy_amount(self) -> Wad:
-        return self.buy_amount
+        return self.buy_amount * Wad.from_number(10 ** (18 - self.buy_token_decimal))
 
     @property
     def remaining_sell_amount(self) -> Wad:
-        return self.pay_amount
+        return self.pay_amount * Wad.from_number(10 ** (18 - self.pay_token_decimal))
 
     def __eq__(self, other):
-        assert(isinstance(other, Order))
+        assert (isinstance(other, Order))
         return self._market.address == other._market.address and self.order_id == other.order_id
 
     def __hash__(self):
@@ -107,11 +120,12 @@ class LogMake:
 
     @classmethod
     def from_receipt(cls, receipt: Receipt):
-        assert(isinstance(receipt, Receipt))
+        assert (isinstance(receipt, Receipt))
 
         if receipt.logs is not None:
             for log in receipt.logs:
-                if len(log['topics']) > 0 and log['topics'][0] == HexBytes('0x773ff502687307abfa024ac9f62f9752a0d210dac2ffd9a29e38e12e2ea82c82'):
+                if len(log['topics']) > 0 and log['topics'][0] == HexBytes(
+                        '0x773ff502687307abfa024ac9f62f9752a0d210dac2ffd9a29e38e12e2ea82c82'):
                     log_make_abi = [abi for abi in SimpleMarket.abi if abi.get('name') == 'LogMake'][0]
                     codec = ABICodec(default_registry)
                     event_data = get_event_data(codec, log_make_abi, log)
@@ -151,7 +165,7 @@ class LogTake:
 
     @classmethod
     def from_event(cls, event: dict):
-        assert(isinstance(event, dict))
+        assert (isinstance(event, dict))
 
         topics = event.get('topics')
         if topics and topics[0] == HexBytes('0x3383e3357c77fd2e3a4b30deea81179bc70a795d053d14d5b7f2f01d0fd4596f'):
@@ -162,7 +176,7 @@ class LogTake:
             return LogTake(event_data)
 
     def __eq__(self, other):
-        assert(isinstance(other, LogTake))
+        assert (isinstance(other, LogTake))
         return self.__dict__ == other.__dict__
 
     def __repr__(self):
@@ -202,8 +216,8 @@ class SimpleMarket(Contract):
     bin = Contract._load_bin(__name__, 'abi/SimpleMarket.bin')
 
     def __init__(self, web3: Web3, address: Address):
-        assert(isinstance(web3, Web3))
-        assert(isinstance(address, Address))
+        assert (isinstance(web3, Web3))
+        assert (isinstance(address, Address))
 
         self.web3 = web3
         self.address = address
@@ -231,8 +245,8 @@ class SimpleMarket(Contract):
             tokens: List of :py:class:`pymaker.token.ERC20Token` class instances.
             approval_function: Approval function (i.e. approval mode).
         """
-        assert(isinstance(tokens, list))
-        assert(callable(approval_function))
+        assert (isinstance(tokens, list))
+        assert (callable(approval_function))
 
         for token in tokens:
             approval_function(token, self.address, 'OasisDEX')
@@ -249,8 +263,8 @@ class SimpleMarket(Contract):
         Returns:
             List of past `LogMake` events represented as :py:class:`pymaker.oasis.LogMake` class.
         """
-        assert(isinstance(number_of_past_blocks, int))
-        assert(isinstance(event_filter, dict) or (event_filter is None))
+        assert (isinstance(number_of_past_blocks, int))
+        assert (isinstance(event_filter, dict) or (event_filter is None))
 
         return self._past_events(self._contract, 'LogMake', LogMake, number_of_past_blocks, event_filter)
 
@@ -266,8 +280,8 @@ class SimpleMarket(Contract):
         Returns:
             List of past `LogBump` events represented as :py:class:`pymaker.oasis.LogBump` class.
         """
-        assert(isinstance(number_of_past_blocks, int))
-        assert(isinstance(event_filter, dict) or (event_filter is None))
+        assert (isinstance(number_of_past_blocks, int))
+        assert (isinstance(event_filter, dict) or (event_filter is None))
 
         return self._past_events(self._contract, 'LogBump', LogBump, number_of_past_blocks, event_filter)
 
@@ -283,8 +297,8 @@ class SimpleMarket(Contract):
         Returns:
             List of past `LogTake` events represented as :py:class:`pymaker.oasis.LogTake` class.
         """
-        assert(isinstance(number_of_past_blocks, int))
-        assert(isinstance(event_filter, dict) or (event_filter is None))
+        assert (isinstance(number_of_past_blocks, int))
+        assert (isinstance(event_filter, dict) or (event_filter is None))
 
         return self._past_events(self._contract, 'LogTake', LogTake, number_of_past_blocks, event_filter)
 
@@ -300,8 +314,8 @@ class SimpleMarket(Contract):
         Returns:
             List of past `LogKill` events represented as :py:class:`pymaker.oasis.LogKill` class.
         """
-        assert(isinstance(number_of_past_blocks, int))
-        assert(isinstance(event_filter, dict) or (event_filter is None))
+        assert (isinstance(number_of_past_blocks, int))
+        assert (isinstance(event_filter, dict) or (event_filter is None))
 
         return self._past_events(self._contract, 'LogKill', LogKill, number_of_past_blocks, event_filter)
 
@@ -323,15 +337,17 @@ class SimpleMarket(Contract):
             An instance of `Order` if the order is still active, or `None` if the order has been
             either already completely taken or cancelled.
         """
-        assert(isinstance(order_id, int))
+        assert (isinstance(order_id, int))
 
         array = self._contract.functions.offers(order_id).call()
+        p_token_decimals = ERC20Token(self.web3, Address(array[1])).decimals()
+        b_token_decimals = ERC20Token(self.web3, Address(array[3])).decimals()
         if array[5] == 0:
             return None
         else:
             return Order(market=self, order_id=order_id, maker=Address(array[4]), pay_token=Address(array[1]),
                          pay_amount=Wad(array[0]), buy_token=Address(array[3]), buy_amount=Wad(array[2]),
-                         timestamp=array[5])
+                         timestamp=array[5], pay_token_decimal=p_token_decimals, buy_token_decimal=b_token_decimals)
 
     def get_orders(self, pay_token: Address = None, buy_token: Address = None) -> List[Order]:
         """Get all active orders.
@@ -346,8 +362,8 @@ class SimpleMarket(Contract):
         Returns:
             A list of `Order` objects representing all active orders on Oasis.
         """
-        assert((isinstance(pay_token, Address) and isinstance(buy_token, Address))
-               or (pay_token is None and buy_token is None))
+        assert ((isinstance(pay_token, Address) and isinstance(buy_token, Address))
+                or (pay_token is None and buy_token is None))
 
         orders = [self.get_order(order_id + 1) for order_id in range(self.get_last_order_id())]
         orders = [order for order in orders if order is not None]
@@ -366,7 +382,7 @@ class SimpleMarket(Contract):
         Returns:
             A list of `Order` objects representing all active orders belonging to this `maker`.
         """
-        assert(isinstance(maker, Address))
+        assert (isinstance(maker, Address))
 
         result = []
         for order_id in range(self.get_last_order_id()):
@@ -402,12 +418,12 @@ class SimpleMarket(Contract):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(pay_token, Address))
-        assert(isinstance(pay_amount, Wad))
-        assert(isinstance(buy_token, Address))
-        assert(isinstance(buy_amount, Wad))
-        assert(pay_amount > Wad(0))
-        assert(buy_amount > Wad(0))
+        assert (isinstance(pay_token, Address))
+        assert (isinstance(pay_amount, Wad))
+        assert (isinstance(buy_token, Address))
+        assert (isinstance(buy_amount, Wad))
+        assert (pay_amount > Wad(0))
+        assert (buy_amount > Wad(0))
 
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'make', [pay_token.address, buy_token.address, pay_amount.value, buy_amount.value], None,
@@ -425,7 +441,7 @@ class SimpleMarket(Contract):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(order_id, int))
+        assert (isinstance(order_id, int))
 
         return Transact(self, self.web3, self.abi, self.address, self._contract, 'bump',
                         [int_to_bytes32(order_id)])
@@ -444,8 +460,8 @@ class SimpleMarket(Contract):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(order_id, int))
-        assert(isinstance(quantity, Wad))
+        assert (isinstance(order_id, int))
+        assert (isinstance(quantity, Wad))
 
         return Transact(self, self.web3, self.abi, self.address, self._contract, 'take',
                         [int_to_bytes32(order_id), quantity.value])
@@ -462,9 +478,10 @@ class SimpleMarket(Contract):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(order_id, int))
+        assert (isinstance(order_id, int))
 
-        return Transact(self, self.web3, self.abi, self.address, self._contract, 'kill(bytes32)', [int_to_bytes32(order_id)])
+        return Transact(self, self.web3, self.abi, self.address, self._contract, 'kill(bytes32)',
+                        [int_to_bytes32(order_id)])
 
     @staticmethod
     def _make_order_id_result_function(receipt):
@@ -532,7 +549,7 @@ class MatchingMarket(ExpiringMarket):
     abi_support = Contract._load_abi(__name__, 'abi/MakerOtcSupportMethods.abi')
 
     def __init__(self, web3: Web3, address: Address, support_address: Optional[Address] = None):
-        assert(isinstance(support_address, Address) or (support_address is None))
+        assert (isinstance(support_address, Address) or (support_address is None))
 
         super(MatchingMarket, self).__init__(web3=web3, address=address)
 
@@ -572,7 +589,7 @@ class MatchingMarket(ExpiringMarket):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(buy_enabled, bool))
+        assert (isinstance(buy_enabled, bool))
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'setBuyEnabled', [buy_enabled])
 
@@ -593,7 +610,7 @@ class MatchingMarket(ExpiringMarket):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(matching_enabled, bool))
+        assert (isinstance(matching_enabled, bool))
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'setMatchingEnabled', [matching_enabled])
 
@@ -609,13 +626,13 @@ class MatchingMarket(ExpiringMarket):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(base_token, Address))
-        assert(isinstance(quote_token, Address))
+        assert (isinstance(base_token, Address))
+        assert (isinstance(quote_token, Address))
 
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'addTokenPairWhitelist', [base_token.address, quote_token.address])
 
-    def get_orders(self, p_token: Token = None,  b_token: Token = None) -> List[Order]:
+    def get_orders(self, p_token: Token = None, b_token: Token = None) -> List[Order]:
         """Get all active orders.
 
         If both `p_token` and `b_token` are specified, orders will be filtered by these.
@@ -635,8 +652,8 @@ class MatchingMarket(ExpiringMarket):
             A list of `Order` objects representing all active orders on Oasis.
         """
 
-        assert((isinstance(p_token, Token) and isinstance(b_token, Token))
-               or ((p_token is None) and (b_token is None)))
+        assert ((isinstance(p_token, Token) and isinstance(b_token, Token))
+                or ((p_token is None) and (b_token is None)))
 
         if (p_token is None) or (b_token is None):
             pay_token = None
@@ -649,7 +666,8 @@ class MatchingMarket(ExpiringMarket):
             orders = []
 
             if self._support_contract:
-                result = self._support_contract.functions.getOffers(self.address.address, pay_token.address, buy_token.address).call()
+                result = self._support_contract.functions.getOffers(self.address.address, pay_token.address,
+                                                                    buy_token.address).call()
 
                 while True:
                     count = 0
@@ -664,7 +682,9 @@ class MatchingMarket(ExpiringMarket):
                                                 pay_amount=p_token.normalize_amount(Wad(result[1][i])),
                                                 buy_token=buy_token,
                                                 buy_amount=b_token.normalize_amount(Wad(result[2][i])),
-                                                timestamp=result[4][i]))
+                                                timestamp=result[4][i],
+                                                pay_token_decimal=p_token.decimals,
+                                                buy_token_decimal=b_token.decimals))
 
                     if count == 100:
                         next_order_id = self._contract.functions.getWorseOffer(orders[-1].order_id).call()
@@ -715,17 +735,16 @@ class MatchingMarket(ExpiringMarket):
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
         """
-        assert(isinstance(p_token, Token))
-        assert(isinstance(pay_amount, Wad))
-        assert(isinstance(b_token, Token))
-        assert(isinstance(buy_amount, Wad))
-        assert(isinstance(pos, int) or (pos is None))
-        assert(pay_amount > Wad(0))
-        assert(buy_amount > Wad(0))
+        assert (isinstance(p_token, Token))
+        assert (isinstance(pay_amount, Wad))
+        assert (isinstance(b_token, Token))
+        assert (isinstance(buy_amount, Wad))
+        assert (isinstance(pos, int) or (pos is None))
+        assert (pay_amount > Wad(0))
+        assert (buy_amount > Wad(0))
 
         pay_token = p_token.address
         buy_token = b_token.address
-
 
         if pos is None:
             pos = self.position(pay_amount=pay_amount,
@@ -733,7 +752,7 @@ class MatchingMarket(ExpiringMarket):
                                 b_token=b_token,
                                 buy_amount=buy_amount)
         else:
-            assert(pos >= 0)
+            assert (pos >= 0)
 
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'offer(uint256,address,uint256,address,uint256)',
@@ -764,17 +783,18 @@ class MatchingMarket(ExpiringMarket):
         Returns:
             The position (`pos`) new order should be inserted at.
         """
-        assert(isinstance(p_token, Token))
-        assert(isinstance(pay_amount, Wad))
-        assert(isinstance(b_token, Token))
-        assert(isinstance(buy_amount, Wad))
+        assert (isinstance(p_token, Token))
+        assert (isinstance(pay_amount, Wad))
+        assert (isinstance(b_token, Token))
+        assert (isinstance(buy_amount, Wad))
 
         pay_token = p_token.address
         buy_token = b_token.address
 
         self.logger.debug("Enumerating orders for position calculation...")
 
-        orders = filter(lambda order: order.pay_amount / order.buy_amount >= p_token.normalize_amount(pay_amount) / b_token.normalize_amount(buy_amount),
+        orders = filter(lambda order: order.pay_amount / order.buy_amount >= p_token.normalize_amount(
+            pay_amount) / b_token.normalize_amount(buy_amount),
                         self.get_orders(p_token, b_token))
 
         self.logger.debug("Enumerating orders for position calculation finished")

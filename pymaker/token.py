@@ -54,6 +54,13 @@ class ERC20Token(Contract):
         except:
             return str(contract_with_bytes32.functions.name().call(), "utf-8").strip('\x00')
 
+    def decimals(self) -> int:
+        abi_with_uint256 = json.loads("""[{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}]""")
+
+        contract_with_string = self._get_contract(self.web3, abi_with_uint256, self.address)
+
+        return int(contract_with_string.functions.decimals().call())
+
     def symbol(self) -> str:
         abi_with_string = json.loads("""[{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"}]""")
         abi_with_bytes32 = json.loads("""[{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"view","type":"function"}]""")
