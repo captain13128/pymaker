@@ -16,8 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
+import logging
 from math import sqrt
-from typing import List, Dict
+from typing import List
 
 from attrdict import AttrDict
 from web3 import Web3
@@ -42,14 +43,15 @@ class UniswapFactory(Contract):
 
     def get_pairs_addreses(self) -> List[Address]:
         all_pairs_length = self._contract.functions.allPairsLength().call()
-        return [Address(self._contract.functions.allPairs(address_index).call()) for address_index in range(all_pairs_length)]
+        return [Address(self._contract.functions.allPairs(address_index).call()) for address_index in
+                range(all_pairs_length)]
 
     def create_pair(self, first_token: Address, second_token: Address) -> Transact:
         return Transact(self, self.web3, self.abi, self.address, self._contract,
                         'createPair', [first_token.address, second_token.address])
 
     def __eq__(self, other):
-        assert(isinstance(other, UniswapFactory))
+        assert (isinstance(other, UniswapFactory))
         return self.address == other.address
 
     def __repr__(self):
@@ -58,6 +60,7 @@ class UniswapFactory(Contract):
 
 class UniswapPair(Contract):
     abi = Contract._load_abi(__name__, 'abi/UniswapV2Pair.abi')
+    logger = logging.getLogger(__name__)
 
     def __init__(self, web3: Web3, pair_address: Address):
         assert (isinstance(web3, Web3))
@@ -102,17 +105,18 @@ class UniswapPair(Contract):
             tokens: List of :py:class:`pymaker.token.ERC20Token` class instances.
             approval_function: Approval function (i.e. approval mode).
         """
-        assert(isinstance(tokens, list))
-        assert(callable(approval_function))
+        assert (isinstance(tokens, list))
+        assert (callable(approval_function))
 
         for token in tokens:
             approval_function(token, self.address, 'UniswapPair')
+            self.logger.debug(f"approval token {token.address} for account {self.address.address}")
 
     def get_liquidity(self, address: Address) -> Wad:
         return Wad(self._contract.functions.balanceOf(address.address).call())
 
     def __eq__(self, other):
-        assert(isinstance(other, UniswapPair))
+        assert (isinstance(other, UniswapPair))
         return self.address == other.address
 
     def __repr__(self):
@@ -120,12 +124,13 @@ class UniswapPair(Contract):
 
 
 class UniswapRouter(Contract):
+    logger = logging.getLogger(__name__)
     abi = Contract._load_abi(__name__, 'abi/UniswapV2Router02.abi')
     zero_address = Address('0x0000000000000000000000000000000000000000')
 
     def __init__(self, web3: Web3, router: Address):
-        assert(isinstance(web3, Web3))
-        assert(isinstance(router, Address))
+        assert (isinstance(web3, Web3))
+        assert (isinstance(router, Address))
 
         self.web3 = web3
         self.address = router
@@ -146,11 +151,12 @@ class UniswapRouter(Contract):
             tokens: List of :py:class:`pymaker.token.ERC20Token` class instances.
             approval_function: Approval function (i.e. approval mode).
         """
-        assert(isinstance(tokens, list))
-        assert(callable(approval_function))
+        assert (isinstance(tokens, list))
+        assert (callable(approval_function))
 
         for token in tokens:
             approval_function(token, self.address, 'UniswapRouter')
+            self.logger.debug(f"approval token {token.address} for account {self.address.address}")
 
     def get_pair(self, first_token: Address, second_token: Address) -> UniswapPair:
         return UniswapPair(web3=self.web3, pair_address=self.factory.get_pair_address(first_token, second_token))
@@ -162,7 +168,8 @@ class UniswapRouter(Contract):
         pair = self.get_pair(first_token=first_token, second_token=second_token)
         reserves = pair.reserves
 
-        return Wad(self._contract.functions.quote(first_token_amount.value, reserves.first_token_amount.value, reserves.second_token_amount.value).call())
+        return Wad(self._contract.functions.quote(first_token_amount.value, reserves.first_token_amount.value,
+                                                  reserves.second_token_amount.value).call())
 
     def get_amount_input(self, first_token: Address, second_token: Address, amount_output: Wad) -> Wad:
         pair = self.get_pair(first_token=first_token, second_token=second_token)
@@ -186,32 +193,39 @@ class UniswapRouter(Contract):
         result = self._contract.functions.getAmountsIn(amount_out.value, [address.address for address in path]).call()
         return [Wad(amount) for amount in result]
 
-    def add_liquidity(self, first_token: Address, second_token: Address, first_token_amount: Wad, second_token_amount: Wad) -> Transact:
-        assert(isinstance(first_token_amount, Wad))
-        assert(isinstance(second_token_amount, Wad))
-        assert(isinstance(first_token, Address))
-        assert(isinstance(second_token, Address))
+    def add_liquidity(self, first_token: Address, second_token: Address, first_token_amount: Wad,
+                      second_token_amount: Wad) -> Transact:
+        assert (isinstance(first_token_amount, Wad))
+        assert (isinstance(second_token_amount, Wad))
+        assert (isinstance(first_token, Address))
+        assert (isinstance(second_token, Address))
 
         first_token_min_amount = Wad.from_number(0.5) * first_token_amount
         second_token_min_amount = Wad.from_number(0.5) * second_token_amount
 
         if first_token == self.zero_address:
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidityETH',
-                            [second_token.address, second_token_amount.value, second_token_min_amount.value, first_token_min_amount.value,
-                             self.account_address.address, self._deadline()], {'value': first_token_amount.value})
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidityETH',
+                          [second_token.address, second_token_amount.value, second_token_min_amount.value,
+                           first_token_min_amount.value,
+                           self.account_address.address, self._deadline()], {'value': first_token_amount.value})
         elif second_token == self.zero_address:
 
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidityETH',
-                            [first_token.address, first_token_amount.value, first_token_min_amount.value, second_token_min_amount.value,
-                             self.account_address.address, self._deadline()], {'value': second_token_amount.value})
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidityETH',
+                          [first_token.address, first_token_amount.value, first_token_min_amount.value,
+                           second_token_min_amount.value,
+                           self.account_address.address, self._deadline()], {'value': second_token_amount.value})
         else:
 
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidity',
-                            [first_token.address, second_token.address, first_token_amount.value, second_token_amount.value, first_token_min_amount.value,
-                             second_token_min_amount.value, self.account_address.address, self._deadline()])
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'addLiquidity',
+                          [first_token.address, second_token.address, first_token_amount.value,
+                           second_token_amount.value, first_token_min_amount.value,
+                           second_token_min_amount.value, self.account_address.address, self._deadline()])
+        self.logger.debug(f"added liquidity for {first_token.address} ({first_token_amount.value}) / "
+                          f"{second_token.address} ({second_token_amount.value})")
+        return tx
 
     def remove_liquidity(self, first_token: Address, second_token: Address, amount: Wad) -> Transact:
-        assert(isinstance(amount, Wad))
+        assert (isinstance(amount, Wad))
         assert (isinstance(first_token, Address))
         assert (isinstance(second_token, Address))
 
@@ -219,17 +233,22 @@ class UniswapRouter(Contract):
         second_token_min_amount = Wad.from_number(0.5) * amount
 
         if first_token == self.zero_address:
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidityETH',
-                            [second_token, amount, second_token_min_amount.value, first_token_min_amount.value,
-                             self.account_address, self._deadline()])
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidityETH',
+                          [second_token, amount, second_token_min_amount.value, first_token_min_amount.value,
+                           self.account_address, self._deadline()])
         elif second_token == self.zero_address:
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidityETH',
-                            [first_token, amount, first_token_min_amount.value, second_token_min_amount.value,
-                             self.account_address, self._deadline()])
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidityETH',
+                          [first_token, amount, first_token_min_amount.value, second_token_min_amount.value,
+                           self.account_address, self._deadline()])
         else:
-            return Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidity',
-                            [first_token, second_token, amount, first_token_min_amount.value,
-                             second_token_min_amount.value, self.account_address, self._deadline()])
+            tx = Transact(self, self.web3, self.abi, self.address, self._contract, 'removeLiquidity',
+                          [first_token, second_token, amount, first_token_min_amount.value,
+                           second_token_min_amount.value, self.account_address, self._deadline()])
+
+        self.logger.debug(f"removed liquidity for {first_token.address} / "
+                          f"{second_token.address} on {amount.value}")
+
+        return tx
 
     def __swap_exact_tokens_for_tokens(self, amount_in: Wad, min_amount_out: Wad, path: List[Address]) -> Transact:
         assert (isinstance(amount_in, Wad))
@@ -294,28 +313,35 @@ class UniswapRouter(Contract):
         assert len(path) >= 2, 'len(path) <2 (the number of tokens in the swap must be more than 2)'
 
         if path[0] == self.zero_address:
-            return self.__swap_exact_eth_for_tokens(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
+            tx = self.__swap_exact_eth_for_tokens(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
         elif path[-1] == self.zero_address:
-            return self.__swap_exact_tokens_for_eth(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
+            tx = self.__swap_exact_tokens_for_eth(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
         else:
-            return self.__swap_exact_tokens_for_tokens(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
+            tx = self.__swap_exact_tokens_for_tokens(amount_in=amount_in, min_amount_out=min_amount_out, path=path)
+
+        self.logger.debug(f"swap for path {path} on amounts {amount_in} {path[0]} to min {min_amount_out} {path[1]}")
+        return tx
 
     def swap_to_exact_amount(self, max_amount_in, amount_out, path: List[Address]) -> Transact:
         assert len(path) >= 2, 'len(path) <2 (the number of tokens in the swap must be more than 2)'
 
         if path[0] == self.zero_address:
-            return self.__swap_eth_for_exact_tokens(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
+            tx = self.__swap_eth_for_exact_tokens(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
         elif path[-1] == self.zero_address:
-            return self.__swap_tokens_for_exact_eth(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
+            tx = self.__swap_tokens_for_exact_eth(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
         else:
-            return self.__swap_tokens_for_exact_tokens(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
+            tx = self.__swap_tokens_for_exact_tokens(amount_out=amount_out, max_amount_in=max_amount_in, path=path)
+
+        self.logger.debug(f"swap for path {path} on amounts max {amount_out} {path[1]} to {max_amount_in} {path[0]}")
+
+        return tx
 
     def _deadline(self):
         """Get a predefined deadline."""
         return int(time.time()) + 1000
 
     def __eq__(self, other):
-        assert(isinstance(other, UniswapRouter))
+        assert (isinstance(other, UniswapRouter))
         return self.address == other.address
 
     def __repr__(self):
@@ -323,6 +349,7 @@ class UniswapRouter(Contract):
 
 
 class MarketMaker:
+    logger = logging.getLogger(__name__)
     router: UniswapRouter = None
 
     def __init__(self, router: UniswapRouter):
@@ -345,7 +372,8 @@ class MarketMaker:
         return value.value + percent_value.value
 
     @staticmethod
-    def _get_amounts(market_price: Wad, first_token_liquidity_pool_amount: Wad, second_token_liquidity_pool_amount: Wad):
+    def _get_amounts(market_price: Wad, first_token_liquidity_pool_amount: Wad,
+                     second_token_liquidity_pool_amount: Wad):
         liquidity_pool_constant = first_token_liquidity_pool_amount * second_token_liquidity_pool_amount
 
         new_first_token_liquidity_pool_amount = sqrt(liquidity_pool_constant * market_price)
@@ -356,7 +384,8 @@ class MarketMaker:
             'limit': Wad.from_number(new_second_token_liquidity_pool_amount) - second_token_liquidity_pool_amount,
         })
 
-    def set_price(self, market_price: Wad, first_token: Address, second_token: Address, max_delta_on_percent: int) -> Transact:
+    def set_price(self, market_price: Wad, first_token: Address, second_token: Address,
+                  max_delta_on_percent: int) -> Transact:
         pair = self.router.get_pair(first_token=first_token, second_token=second_token)
 
         reserves = pair.reserves.map()
@@ -364,26 +393,37 @@ class MarketMaker:
         uniswap_price = reserves[first_token] / reserves[second_token]
         delta = (market_price.value * 100 / uniswap_price.value) - 100
 
+        self.logger.info(f"the price differs from the market by {delta}%")
+
         if delta > max_delta_on_percent:
+            self.logger.debug(f"delta > max_delta ({delta} > {max_delta_on_percent})")
             input_data = self._get_amounts(market_price=market_price,
                                            first_token_liquidity_pool_amount=reserves[first_token],
                                            second_token_liquidity_pool_amount=reserves[second_token])
 
-            a = self.router.get_amounts_out(amount_in=abs(input_data.exact_value), path=[first_token, second_token])
+            amounts = self.router.get_amounts_out(amount_in=abs(input_data.exact_value), path=[first_token, second_token])
+
+            self.logger.info(f"To correct the price {abs(input_data.exact_value)} {first_token} will be exchanged "
+                             f"for at least {amounts[-1]} {second_token}")
 
             return self.router.swap_from_exact_amount(amount_in=abs(input_data.exact_value),
-                                                      min_amount_out=a[-1],
+                                                      min_amount_out=amounts[-1],
                                                       path=[first_token, second_token])
 
         elif delta < 0 and abs(delta) > max_delta_on_percent:
+            self.logger.debug(f"delta < max_delta ({delta} < {max_delta_on_percent})")
             input_data = self._get_amounts(market_price=market_price,
                                            first_token_liquidity_pool_amount=reserves[first_token],
                                            second_token_liquidity_pool_amount=reserves[second_token])
 
-            a = self.router.get_amounts_in(amount_out=abs(input_data.exact_value), path=[second_token, first_token])
+            amounts = self.router.get_amounts_in(amount_out=abs(input_data.exact_value), path=[second_token, first_token])
+
+            self.logger.info(f"To fixed the price, you need to get {abs(input_data.exact_value)} {second_token} by "
+                             f"exchanging at more {amounts[0]} {first_token}")
 
             return self.router.swap_to_exact_amount(amount_out=abs(input_data.exact_value),
-                                                    max_amount_in=a[0],
+                                                    max_amount_in=amounts[0],
                                                     path=[second_token, first_token])
         else:
-            print()
+            self.logger.info(f"the price difference is within "
+                             f"the permissible (delta={delta}, max_delta={max_delta_on_percent})")

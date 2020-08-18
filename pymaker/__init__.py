@@ -403,7 +403,7 @@ class Transact:
 
                 return receipt
         except TransactionNotFound:
-            self.logger.warning(f"Transaction failed, with hash {transaction_hash}")
+            self.logger.debug(f"Transaction failed, with hash {transaction_hash}")
         return None
 
     def _as_dict(self, dict_or_none) -> dict:
@@ -618,7 +618,7 @@ class Transact:
 
                 # If we can not find a mined receipt but at the same time we know last used nonce
                 # has increased, then it means that the transaction we tried to send failed.
-                self.logger.warning(f"Transaction {self.name()} has been overridden by another transaction"
+                self.logger.debug(f"Transaction {self.name()} has been overridden by another transaction"
                                     f" with the same nonce, which means it has failed")
                 return None
 
