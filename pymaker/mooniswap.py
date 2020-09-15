@@ -195,9 +195,6 @@ class MarketMaker:
             second_token: Wad.from_number(sqrt(liquidity_pool_constant / market_price)),
         }
 
-        # new_first_token_liquidity_pool_amount = Wad.from_number(sqrt(liquidity_pool_constant * market_price))
-        # new_second_token_liquidity_pool_amount = Wad.from_number(sqrt(liquidity_pool_constant / market_price))
-
         if new_reserved[first_token] > reserved[first_token]:
             first_token_delta_amount = new_reserved[first_token] - reserved[first_token]
             second_token_delta_amount = reserved[second_token] - new_reserved[second_token]

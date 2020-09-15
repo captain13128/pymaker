@@ -50,7 +50,7 @@ class Order:
     """
 
     def __init__(self, market, order_id: int, maker: Address, pay_token: Address, pay_amount: Wad, buy_token: Address,
-                 buy_amount: Wad, timestamp: int, pay_token_decimal: int = 18, buy_token_decimal: int = 18):
+                 buy_amount: Wad, timestamp: int, pay_token_decimal: int = 18, buy_token_decimal: int = 18, **kwargs):
         assert (isinstance(order_id, int))
         assert (isinstance(maker, Address))
         assert (isinstance(pay_token, Address))
@@ -72,6 +72,8 @@ class Order:
 
         self.pay_token_decimal = pay_token_decimal
         self.buy_token_decimal = buy_token_decimal
+
+        self.kwargs = kwargs
 
     @property
     def sell_to_buy_price(self) -> Wad:
@@ -340,14 +342,23 @@ class SimpleMarket(Contract):
         assert (isinstance(order_id, int))
 
         array = self._contract.functions.offers(order_id).call()
-        p_token_decimals = ERC20Token(self.web3, Address(array[1])).decimals()
-        b_token_decimals = ERC20Token(self.web3, Address(array[3])).decimals()
+        p_token = ERC20Token(self.web3, Address(array[1]))
+        b_token = ERC20Token(self.web3, Address(array[3]))
+
+        try:
+            msg_price_changed = f"The price of {p_token.symbol()}/{b_token.symbol()} has changed by {'{percent}'}%. Orders will be changed"
+        except Exception as e:
+            msg_price_changed = f"The price has changed by {'{percent}'}%. Orders will be changed"
+
+        # p_token_decimals = ERC20Token(self.web3, Address(array[1])).decimals()
+        # b_token_decimals = ERC20Token(self.web3, Address(array[3])).decimals()
         if array[5] == 0:
             return None
         else:
             return Order(market=self, order_id=order_id, maker=Address(array[4]), pay_token=Address(array[1]),
                          pay_amount=Wad(array[0]), buy_token=Address(array[3]), buy_amount=Wad(array[2]),
-                         timestamp=array[5], pay_token_decimal=p_token_decimals, buy_token_decimal=b_token_decimals)
+                         timestamp=array[5], pay_token_decimal=p_token.decimals(), buy_token_decimal=b_token.decimals(),
+                         p_token=p_token, b_token=b_token, msg_price_changed=msg_price_changed)
 
     def get_orders(self, pay_token: Address = None, buy_token: Address = None) -> List[Order]:
         """Get all active orders.
@@ -668,6 +679,10 @@ class MatchingMarket(ExpiringMarket):
             if self._support_contract:
                 result = self._support_contract.functions.getOffers(self.address.address, pay_token.address,
                                                                     buy_token.address).call()
+                try:
+                    msg_price_changed = f"The price of {p_token.name}/{b_token.name} has changed by {'{percent}'}%. Orders will be changed"
+                except Exception as e:
+                    msg_price_changed = f"The price has changed by {'{percent}'}%. Orders will be changed"
 
                 while True:
                     count = 0
@@ -684,7 +699,10 @@ class MatchingMarket(ExpiringMarket):
                                                 buy_amount=b_token.normalize_amount(Wad(result[2][i])),
                                                 timestamp=result[4][i],
                                                 pay_token_decimal=p_token.decimals,
-                                                buy_token_decimal=b_token.decimals))
+                                                buy_token_decimal=b_token.decimals,
+                                                p_token=p_token,
+                                                b_token=b_token,
+                                                msg_price_changed=msg_price_changed))
 
                     if count == 100:
                         next_order_id = self._contract.functions.getWorseOffer(orders[-1].order_id).call()
